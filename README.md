@@ -26,12 +26,6 @@ Define the New Problem Requirements
 Pre-trained [PREVALENT](https://github.com/weituo12321/PREVALENT) weights
     - Download the `pytorch_model.bin` from [here](https://drive.google.com/drive/folders/1sW2xVaSaciZiQ7ViKzm_KbrLD_XvOq5y).
 
-Preprocess the Dataset
-- Visual Features: Extract features from RGB and depth images to match PREVALENT’s input expectations (e.g., img_feature_dim=2176).
-    - Use a pre-trained ResNet (e.g., ResNet-50, 2048-dim output) for RGB.
-    - Use a separate CNN or the same ResNet for depth (treating it as a grayscale image), then concatenate (e.g., 4096-dim total).
-    - Project to hidden_size (768) within the model.
-
 python r2r_src/train_navigation.py
 
 python r2r_src/test_navigation.py

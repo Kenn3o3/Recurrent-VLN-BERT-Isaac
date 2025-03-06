@@ -80,7 +80,7 @@ args = param.args
 
 args.vlnbert = "prevalent"
 args.iters = 10000  # Adjust as needed
-args.batchSize = 32
+args.batchSize = 4
 args.lr = 1e-4
 args.name = "navigation_PREVALENT"
 args.maxInput = 80

@@ -17,7 +17,7 @@ val_size = int(0.1 * len(all_episodes))
 train_episodes = all_episodes[:train_size]
 val_episodes = all_episodes[train_size:train_size + val_size]
 test_episodes = all_episodes[train_size + val_size:]
-
+print("Ready to train!!!")
 train_env = NavigationBatch(data_dir, batch_size=args.batchSize, episodes=train_episodes, tokenizer=get_tokenizer(args))
 val_env = NavigationBatch(data_dir, batch_size=args.batchSize, episodes=val_episodes, tokenizer=get_tokenizer(args))
 

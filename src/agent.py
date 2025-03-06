@@ -17,6 +17,42 @@ class NavigationAgent:
         self.vln_bert = get_vlnbert_models().cuda()
         self.optimizer = args.optimizer(self.vln_bert.parameters(), lr=args.lr)
 
+    # def rollout(self, batch, train=True):
+    #     instr_encodings = batch["instr_encodings"].cuda()
+    #     rgb = batch["rgb"].cuda()      # (batch, seq_len, 3, 224, 224)
+    #     depth = batch["depth"].cuda()  # (batch, seq_len, 1, 224, 224)
+    #     actions = batch["actions"].cuda()
+    #     masks = batch["masks"].cuda()
+    #     seq_len = rgb.size(1)
+
+    #     #Fixed order 
+    #     # state, lang_output = self.vln_bert("language", instr_encodings)
+    #     # lang_mask = (instr_encodings != self.tokenizer.pad_token_id).float().cuda()
+    #     # vis_mask = torch.ones(rgb.size(0), 1).cuda()
+
+    #     lang_mask = (instr_encodings != self.tokenizer.pad_token_id).float().cuda()
+    #     state, lang_output = self.vln_bert("language", instr_encodings, lang_mask=lang_mask)
+    #     vis_mask = torch.ones(rgb.size(0), 1).cuda()
+
+    #     losses = []
+    #     predictions = []
+    #     for t in range(seq_len):
+    #         rgb_t = rgb[:, t, :, :, :]
+    #         depth_t = depth[:, t, :, :, :]
+    #         next_state, action_logits, _ = self.vln_bert("visual", lang_output, lang_mask=lang_mask, vis_mask=vis_mask, rgb=rgb_t, depth=depth_t)
+    #         loss = F.cross_entropy(action_logits, actions[:, t], ignore_index=-1, reduction="none")
+    #         losses.append(loss * masks[:, t].float())
+    #         predictions.append(action_logits.argmax(dim=-1))
+    #         lang_output = next_state
+
+    #     total_loss = torch.stack(losses).sum() / masks.sum()
+    #     if train:
+    #         self.optimizer.zero_grad()
+    #         total_loss.backward()
+    #         torch.nn.utils.clip_grad_norm_(self.vln_bert.parameters(), 40.)
+    #         self.optimizer.step()
+    #     return total_loss.item(), torch.stack(predictions, dim=1), actions
+
     def rollout(self, batch, train=True):
         instr_encodings = batch["instr_encodings"].cuda()
         rgb = batch["rgb"].cuda()      # (batch, seq_len, 3, 224, 224)
@@ -25,8 +61,8 @@ class NavigationAgent:
         masks = batch["masks"].cuda()
         seq_len = rgb.size(1)
 
-        state, lang_output = self.vln_bert("language", instr_encodings)
         lang_mask = (instr_encodings != self.tokenizer.pad_token_id).float().cuda()
+        _, lang_output = self.vln_bert("language", instr_encodings, lang_mask=lang_mask)
         vis_mask = torch.ones(rgb.size(0), 1).cuda()
 
         losses = []
@@ -34,11 +70,11 @@ class NavigationAgent:
         for t in range(seq_len):
             rgb_t = rgb[:, t, :, :, :]
             depth_t = depth[:, t, :, :, :]
-            next_state, action_logits, _ = self.vln_bert("visual", lang_output, lang_mask=lang_mask, vis_mask=vis_mask, rgb=rgb_t, depth=depth_t)
+            pooled_output, action_logits, next_lang_output = self.vln_bert("visual", lang_output, lang_mask=lang_mask, vis_mask=vis_mask, rgb=rgb_t, depth=depth_t)
             loss = F.cross_entropy(action_logits, actions[:, t], ignore_index=-1, reduction="none")
             losses.append(loss * masks[:, t].float())
             predictions.append(action_logits.argmax(dim=-1))
-            lang_output = next_state
+            lang_output = next_lang_output  # Update with sequence_output
 
         total_loss = torch.stack(losses).sum() / masks.sum()
         if train:

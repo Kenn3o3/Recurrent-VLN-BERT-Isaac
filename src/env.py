@@ -73,7 +73,9 @@ class NavigationBatch:
         rgb = [torch.stack(item["rgb"] + [torch.zeros(3, 224, 224)] * (max_len - len(item["rgb"]))) for item in batch]
         depth = [torch.stack(item["depth"] + [torch.zeros(1, 224, 224)] * (max_len - len(item["depth"]))) for item in batch]
         actions = [torch.tensor(item["actions"] + [-1] * (max_len - len(item["actions"])), dtype=torch.long) for item in batch]
-        masks = [torch.ones(len(item["actions"]), dtype=torch.bool) + torch.zeros(max_len - len(item["actions"]), dtype=torch.bool) for item in batch]
+        # masks = [torch.ones(len(item["actions"]), dtype=torch.bool) + torch.zeros(max_len - len(item["actions"]), dtype=torch.bool) for item in batch] #Corrected to concatenate
+        masks = [torch.cat([torch.ones(len(item["actions"]), dtype=torch.bool), torch.zeros(max_len - len(item["actions"]), dtype=torch.bool)]) for item in batch]
+        # used to distinguish between actual actions and padded actions within a batch of sequences
         return {
             "instr_encodings": instr_encodings,         # (batch, maxInput)
             "rgb": torch.stack(rgb),                    # (batch, max_len, 3, 224, 224)

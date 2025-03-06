@@ -404,24 +404,24 @@ class VLNBert(BertPreTrainedModel):
         
         self.init_weights()
 
-    def forward(self, mode, input_ids, token_type_ids=None,
-        attention_mask=None, lang_mask=None, vis_mask=None, position_ids=None, head_mask=None, img_feats=None):
+    # def forward(self, mode, input_ids, token_type_ids=None,
+    #     attention_mask=None, lang_mask=None, vis_mask=None, position_ids=None, head_mask=None, img_feats=None):
 
-        attention_mask = lang_mask
+    #     attention_mask = lang_mask
 
-        if token_type_ids is None:
-            token_type_ids = torch.zeros_like(input_ids)
+    #     if token_type_ids is None:
+    #         token_type_ids = torch.zeros_like(input_ids)
 
-        extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
+    #     extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
 
-        extended_attention_mask = extended_attention_mask.to(dtype=next(self.parameters()).dtype) # fp16 compatibility
-        extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
+    #     extended_attention_mask = extended_attention_mask.to(dtype=next(self.parameters()).dtype) # fp16 compatibility
+    #     extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
 
-        head_mask = [None] * self.config.num_hidden_layers
+    #     head_mask = [None] * self.config.num_hidden_layers
 
-def forward(self, mode, input_ids=None, token_type_ids=None,
-                attention_mask=None, lang_mask=None, vis_mask=None, position_ids=None, head_mask=None,
-                rgb=None, depth=None):
+    def forward(self, mode, input_ids=None, token_type_ids=None,
+                    attention_mask=None, lang_mask=None, vis_mask=None, position_ids=None, head_mask=None,
+                    rgb=None, depth=None):
         attention_mask = lang_mask
 
         if token_type_ids is None:
