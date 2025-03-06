@@ -11,6 +11,7 @@ import torch
 from torch import nn
 
 from transformers import BertPreTrainedModel
+import torchvision.models as models
 
 logger = logging.getLogger(__name__)
 
@@ -401,7 +402,7 @@ class VLNBert(BertPreTrainedModel):
         self.rgb_extractor = FeatureExtractor(pretrained=True)
         self.depth_extractor = DepthFeatureExtractor()
         
-        self.apply(self.init_weights)
+        self.init_weights()
 
     def forward(self, mode, input_ids, token_type_ids=None,
         attention_mask=None, lang_mask=None, vis_mask=None, position_ids=None, head_mask=None, img_feats=None):

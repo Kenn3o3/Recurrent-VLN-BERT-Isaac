@@ -4,8 +4,8 @@ from agent import NavigationAgent
 from param import args
 from vlnbert.vlnbert_init import get_tokenizer
 
-feature_dir = "training_data_features"
-test_env = NavigationBatch(os.path.join(feature_dir, "val"), batch_size=args.batchSize, splits=["val"], tokenizer=get_tokenizer(args))
+data_dir = "../VLN-Go2-Matterport"
+test_env = NavigationBatch(os.path.join(data_dir, "val"), batch_size=args.batchSize, splits=["val"], tokenizer=get_tokenizer(args))
 agent = NavigationAgent(test_env, get_tokenizer(args))
 agent.load(os.path.join("snap", args.name, "navigation_model.pt"))
 loss, preds, gt = agent.test()
