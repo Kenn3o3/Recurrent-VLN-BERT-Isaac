@@ -5,6 +5,7 @@ import torch
 from torchvision import transforms
 import torch.nn.functional as F
 from utils import Tokenizer, pad_instr_tokens
+from param import args
 
 class NavigationBatch:
     def __init__(self, feature_dir, batch_size=64, episodes=None, tokenizer=None):

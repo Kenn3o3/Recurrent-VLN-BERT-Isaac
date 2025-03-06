@@ -5,7 +5,9 @@ from tqdm import tqdm
 def compute_depth_statistics(data_dir):
     min_depth = float('inf')  # Initialize to infinity
     max_depth = float('-inf')  # Initialize to negative infinity
-    all_depths = []  # List to collect all depth values for mean/std
+    count = 0                 # Total number of depth values
+    mean = 0.0                # Running mean
+    M2 = 0.0                  # Sum of squared differences for variance
 
     # Iterate over all episodes in the dataset
     for episode in tqdm(os.listdir(data_dir)):
@@ -20,16 +22,27 @@ def compute_depth_statistics(data_dir):
             if depth_file.endswith(".npy"):
                 depth_path = os.path.join(depth_dir, depth_file)
                 depth = np.load(depth_path)  # Load depth map
-                all_depths.append(depth)  # Store for mean/std calculation
-                min_depth = min(min_depth, depth.min())  # Update global min
-                max_depth = max(max_depth, depth.max())  # Update global max
+                # Update min and max
+                min_depth = min(min_depth, depth.min())
+                max_depth = max(max_depth, depth.max())
+                # # Update running statistics for mean and standard deviation
+                # for value in depth.flatten():
+                #     count += 1
+                #     delta = value - mean
+                #     mean += delta / count
+                #     delta2 = value - mean
+                #     M2 += delta * delta2
+                print(min_depth)
+                print(max_depth)
+                print("---")
+    # Compute standard deviation
+    if count < 2:
+        std_depth = float('nan')  # Not enough data to compute std
+    else:
+        variance = M2 / (count - 1)
+        std_depth = np.sqrt(variance)
 
-    # Compute mean and standard deviation
-    all_depths = np.concatenate(all_depths, axis=0)  # Combine all depth maps
-    mean_depth = all_depths.mean()
-    std_depth = all_depths.std()
-
-    return min_depth, max_depth, mean_depth, std_depth
+    return min_depth, max_depth, mean, std_depth
 
 # Run the computation
 data_dir = "../VLN-Go2-Matterport/training_data"
