@@ -2,6 +2,7 @@
 
 from transformers import BertConfig, BertTokenizer
 
+from transformers import logging
 def get_tokenizer(args):
     tokenizer_class = BertTokenizer
     tokenizer = tokenizer_class.from_pretrained('bert-base-uncased')
@@ -18,7 +19,7 @@ def get_vlnbert_models(config=None):
     vis_config.img_feature_type = ""
     vis_config.vl_layers = 4
     vis_config.la_layers = 9
-
+    logging.set_verbosity_error()
     visual_model = model_class.from_pretrained(model_name_or_path, config=vis_config, ignore_mismatched_sizes=True) # The mismatched visn_fc.weight -> randomly initialized values -> fine-tuned during training to adapt to the new 4096-dimensional input features.
 
     return visual_model

@@ -27,7 +27,7 @@ class NavigationBatch:
         if episodes is None:
             episodes = os.listdir(os.path.join(feature_dir, "training_data"))
         
-        # Load data for each episode
+        # Load data for each episode, storing paths instead of images
         for episode in episodes:
             episode_path = os.path.join(feature_dir, "training_data", episode)
             with open(os.path.join(episode_path, "instructions.txt")) as f:
@@ -37,15 +37,13 @@ class NavigationBatch:
             instr_tokens = tokenizer.tokenize(instr)
             padded_tokens, _ = pad_instr_tokens(instr_tokens, args.maxInput)
             instr_encoding = tokenizer.convert_tokens_to_ids(padded_tokens)
-            rgb_files = sorted([f for f in os.listdir(os.path.join(episode_path, "rgbs")) if f.endswith(".png")])
-            depth_files = sorted([f for f in os.listdir(os.path.join(episode_path, "depths")) if f.endswith(".npy")])
-            rgb_images = [self.rgb_transform(Image.open(os.path.join(episode_path, "rgbs", f))) for f in rgb_files]
-            depth_maps = [self.depth_transform(np.load(os.path.join(episode_path, "depths", f))) for f in depth_files]
+            rgb_files = sorted([os.path.join(episode_path, "rgbs", f) for f in os.listdir(os.path.join(episode_path, "rgbs")) if f.endswith(".png")])
+            depth_files = sorted([os.path.join(episode_path, "depths", f) for f in os.listdir(os.path.join(episode_path, "depths")) if f.endswith(".npy")])
             self.data.append({
                 "instr_id": episode,
                 "instr_encoding": instr_encoding,
-                "rgb": rgb_images,      # List of (3, 224, 224) tensors
-                "depth": depth_maps,    # List of (1, 224, 224) tensors
+                "rgb_paths": rgb_files,  # List of paths to RGB images
+                "depth_paths": depth_files,  # List of paths to depth maps
                 "actions": [self.action_to_idx(a) for a in actions]
             })
         self.ix = 0
@@ -67,19 +65,32 @@ class NavigationBatch:
         return self._collate(batch)
 
     def _collate(self, batch):
-        """Collate batch data, padding sequences to the maximum length in the batch."""
-        max_len = max(len(item["rgb"]) for item in batch)
+        """Collate batch data, loading images on-the-fly and padding sequences."""
+        max_len = max(len(item["rgb_paths"]) for item in batch)
         instr_encodings = torch.stack([torch.tensor(item["instr_encoding"], dtype=torch.long) for item in batch])
-        rgb = [torch.stack(item["rgb"] + [torch.zeros(3, 224, 224)] * (max_len - len(item["rgb"]))) for item in batch]
-        depth = [torch.stack(item["depth"] + [torch.zeros(1, 224, 224)] * (max_len - len(item["depth"]))) for item in batch]
+        
+        rgb = []
+        depth = []
+        for item in batch:
+            # Load and transform images for this episode
+            rgb_seq = [self.rgb_transform(Image.open(path)) for path in item["rgb_paths"]]
+            depth_seq = [self.depth_transform(np.load(path)) for path in item["depth_paths"]]
+            # Pad sequences with zero tensors
+            rgb_seq += [torch.zeros(3, 224, 224)] * (max_len - len(rgb_seq))
+            depth_seq += [torch.zeros(1, 224, 224)] * (max_len - len(depth_seq))
+            rgb.append(torch.stack(rgb_seq))
+            depth.append(torch.stack(depth_seq))
+        
+        rgb = torch.stack(rgb)  # (batch, max_len, 3, 224, 224)
+        depth = torch.stack(depth)  # (batch, max_len, 1, 224, 224)
+        
         actions = [torch.tensor(item["actions"] + [-1] * (max_len - len(item["actions"])), dtype=torch.long) for item in batch]
-        # masks = [torch.ones(len(item["actions"]), dtype=torch.bool) + torch.zeros(max_len - len(item["actions"]), dtype=torch.bool) for item in batch] #Corrected to concatenate
         masks = [torch.cat([torch.ones(len(item["actions"]), dtype=torch.bool), torch.zeros(max_len - len(item["actions"]), dtype=torch.bool)]) for item in batch]
-        # used to distinguish between actual actions and padded actions within a batch of sequences
+        
         return {
             "instr_encodings": instr_encodings,         # (batch, maxInput)
-            "rgb": torch.stack(rgb),                    # (batch, max_len, 3, 224, 224)
-            "depth": torch.stack(depth),                # (batch, max_len, 1, 224, 224)
+            "rgb": rgb,                                 # (batch, max_len, 3, 224, 224)
+            "depth": depth,                             # (batch, max_len, 1, 224, 224)
             "actions": torch.stack(actions),            # (batch, max_len)
             "masks": torch.stack(masks)                 # (batch, max_len)
         }
@@ -95,8 +106,11 @@ class NavigationBatch:
 
     @staticmethod
     def depth_transform(depth):
-        """Transform for depth maps (assumes 2D NumPy array)."""
-        depth = torch.from_numpy(depth).float() / 10.0  # Normalize by assumed max_depth=10.0
-        depth = depth.unsqueeze(0).unsqueeze(0)         # (1, 1, H, W)
+        depth = np.where(np.isfinite(depth), depth, 1.94)
+        depth = torch.from_numpy(depth).float()
+        depth = (depth - 1.94) / 1.43  # Standardize
+        depth = depth.unsqueeze(0).unsqueeze(0)
         depth = F.interpolate(depth, size=(224, 224), mode='bilinear', align_corners=False).squeeze(0)
-        return depth                                    # (1, 224, 224)
+        if not torch.isfinite(depth).all():
+            raise ValueError("Non-finite values detected in depth tensor after transformation")
+        return depth

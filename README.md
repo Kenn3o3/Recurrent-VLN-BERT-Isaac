@@ -29,3 +29,11 @@ Pre-trained [PREVALENT](https://github.com/weituo12321/PREVALENT) weights
 python r2r_src/train_navigation.py
 
 python r2r_src/test_navigation.py
+
+===
+depth statistic:
+
+Min Depth: 0.04 meters
+Max Depth: 39.36 meters
+Mean Depth: 2.02 meters
+Std Depth: 1.68 meters

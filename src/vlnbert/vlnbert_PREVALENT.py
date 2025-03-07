@@ -12,7 +12,6 @@ from torch import nn
 
 from transformers import BertPreTrainedModel
 import torchvision.models as models
-
 logger = logging.getLogger(__name__)
 
 def gelu(x):
@@ -362,7 +361,7 @@ class VisionEncoder(nn.Module):
 class FeatureExtractor(nn.Module):
     def __init__(self, pretrained=True):
         super().__init__()
-        resnet = models.resnet50(pretrained=pretrained)
+        resnet = models.resnet18(pretrained=pretrained)
         self.features = nn.Sequential(*list(resnet.children())[:-2])  # Up to avgpool
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
 
@@ -372,18 +371,71 @@ class FeatureExtractor(nn.Module):
         x = x.view(x.size(0), -1)   # (batch, 2048)
         return x
 
-class DepthFeatureExtractor(nn.Module):
-    def __init__(self):
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+class DepthCNN(nn.Module):
+    def __init__(self, output_dim=512):
         super().__init__()
-        resnet = models.resnet50(pretrained=False)
-        resnet.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
-        self.features = nn.Sequential(*list(resnet.children())[:-2])
+        self.conv1 = nn.Conv2d(1, 16, kernel_size=3, stride=2, padding=1)
+        self.gn1 = nn.GroupNorm(8, 16)
+        self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=1)
+        self.gn2 = nn.GroupNorm(8, 32)
+        self.conv3 = nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1)
+        self.gn3 = nn.GroupNorm(8, 64)
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Linear(64, output_dim)
+        
+        # Initialize weights
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                m.weight.data *= 0.1  # Scale down weights
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Linear):
+                nn.init.normal_(m.weight, 0, 0.01)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.GroupNorm):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
 
     def forward(self, x):
-        x = self.features(x)
+        x = torch.clamp(x, min=-5, max=5)
+        # print("Depth input min/max/mean:", x.min().item(), x.max().item(), x.mean().item())
+        if torch.isnan(x).any(): print("NaN in input to DepthCNN")
+        
+        # print("Before conv1 min/max/mean:", x.min().item(), x.max().item(), x.mean().item())
+        x = self.conv1(x)
+        x = torch.clamp(x, min=-10, max=10)
+        # print("After conv1 min/max/mean:", x.min().item(), x.max().item(), x.mean().item())
+        if torch.isnan(x).any(): print("NaN after conv1")
+        x = self.gn1(x)
+        if torch.isnan(x).any(): print("NaN after gn1")
+        x = F.relu(x)
+        if torch.isnan(x).any(): print("NaN after relu1")
+        x = torch.clamp(x, min=-50, max=50)
+        
+        x = self.conv2(x)
+        if torch.isnan(x).any(): print("NaN after conv2")
+        x = self.gn2(x)
+        if torch.isnan(x).any(): print("NaN after gn2")
+        x = F.relu(x)
+        if torch.isnan(x).any(): print("NaN after relu2")
+        x = torch.clamp(x, min=-50, max=50)
+        
+        x = self.conv3(x)
+        if torch.isnan(x).any(): print("NaN after conv3")
+        x = self.gn3(x)
+        if torch.isnan(x).any(): print("NaN after gn3")
+        x = F.relu(x)
+        if torch.isnan(x).any(): print("NaN after relu3")
+        x = torch.clamp(x, min=-50, max=50)
+        
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
+        x = self.fc(x)
         return x
 
 class VLNBert(BertPreTrainedModel):
@@ -396,28 +448,14 @@ class VLNBert(BertPreTrainedModel):
         self.la_layers = config.la_layers
         self.lalayer = nn.ModuleList([BertLayer(config) for _ in range(self.la_layers)])
         self.addlayer = nn.ModuleList([LXRTXLayer(config) for _ in range(self.vl_layers)])
+        self.rgb_extractor = FeatureExtractor(pretrained=True)
+        self.depth_extractor = DepthCNN(output_dim=512)
+        self.img_dim = 1024
         self.vision_encoder = VisionEncoder(self.img_dim, config)
+
         self.action_head = nn.Linear(config.hidden_size, 3)  # 3 actions
         
-        self.rgb_extractor = FeatureExtractor(pretrained=True)
-        self.depth_extractor = DepthFeatureExtractor()
-        
         self.init_weights()
-
-    # def forward(self, mode, input_ids, token_type_ids=None,
-    #     attention_mask=None, lang_mask=None, vis_mask=None, position_ids=None, head_mask=None, img_feats=None):
-
-    #     attention_mask = lang_mask
-
-    #     if token_type_ids is None:
-    #         token_type_ids = torch.zeros_like(input_ids)
-
-    #     extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
-
-    #     extended_attention_mask = extended_attention_mask.to(dtype=next(self.parameters()).dtype) # fp16 compatibility
-    #     extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
-
-    #     head_mask = [None] * self.config.num_hidden_layers
 
     def forward(self, mode, input_ids=None, token_type_ids=None,
                     attention_mask=None, lang_mask=None, vis_mask=None, position_ids=None, head_mask=None,
@@ -448,8 +486,12 @@ class VLNBert(BertPreTrainedModel):
             text_mask = extended_attention_mask
             
             # Extract features from raw RGB and depth
-            rgb_feat = self.rgb_extractor(rgb)      # (batch, 2048)
-            depth_feat = self.depth_extractor(depth)  # (batch, 2048)
+            rgb_feat = self.rgb_extractor(rgb)      # (batch, 512)
+            depth_feat = self.depth_extractor(depth)  # (batch, 512)
+            # print("RGB feat min/max/mean:", rgb_feat.min().item(), rgb_feat.max().item(), rgb_feat.mean().item())
+            # print("Depth feat min/max/mean:", depth_feat.min().item(), depth_feat.max().item(), depth_feat.mean().item())
+            if torch.isnan(rgb_feat).any() or torch.isnan(depth_feat).any():
+                raise ValueError("NaN detected in feature extraction")
             visn_input = torch.cat([rgb_feat, depth_feat], dim=-1).unsqueeze(1)  # (batch, 1, 4096)
             img_embedding_output = self.vision_encoder(visn_input)  # (batch, 1, hidden_size)
             

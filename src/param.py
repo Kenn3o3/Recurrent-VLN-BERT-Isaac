@@ -42,7 +42,7 @@ class Param:
         self.parser.add_argument("--submit", type=int, default=0)
 
         # Training Configurations
-        self.parser.add_argument('--optim', type=str, default='rms')    # rms, adam
+        self.parser.add_argument('--optim', type=str, default='adamW')    # rms, adam
         self.parser.add_argument('--lr', type=float, default=0.00001, help="the learning rate")
         self.parser.add_argument('--decay', dest='weight_decay', type=float, default=0.)
         self.parser.add_argument('--feedback', type=str, default='sample',
@@ -79,8 +79,10 @@ param = Param()
 args = param.args
 
 args.vlnbert = "prevalent"
-args.iters = 10000  # Adjust as needed
-args.batchSize = 4
-args.lr = 1e-4
+args.iters = 10000
+args.batchSize = 2
+args.lr = 1e-5
 args.name = "navigation_PREVALENT"
 args.maxInput = 80
+args.optim = 'adamW'
+args.warmup_fraction = 0.1 

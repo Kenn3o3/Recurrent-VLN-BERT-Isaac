@@ -1,1 +1,5 @@
 pretrained_weight
+runs
+__pycache__
+training_data
+checkpoints
