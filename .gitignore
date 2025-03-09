@@ -5,3 +5,5 @@ training_data
 checkpoints
 evaluation_logs
 logs
+report_*
+report
