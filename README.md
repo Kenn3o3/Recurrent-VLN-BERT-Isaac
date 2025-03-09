@@ -54,8 +54,8 @@ python src/eval.py --model_path=/home/prj21/fyp/Recurrent-VLN-BERT-Isaac/checkpo
 # todo:
 
 add graph for checking val loss during training.
-enhance generalizability, e.g., 
 
 run mode:
-
+```
 python src/run.py --task=go2_matterport_vision --history_length=9 --load_run=2024-09-25_23-22-02 --episode_index 0
+```

@@ -95,7 +95,7 @@ class NavigationAgent:
             
             scheduler.step()
             
-            # Periodic validation and checkpointing every 100 iterations
+            # Periodic validation and checkpointing every 500 iterations
             if (iter + 1) % 100 == 0:
                 val_loss, val_accuracy = self.validate(val_env)
                 val_losses.append(val_loss)
@@ -103,7 +103,7 @@ class NavigationAgent:
                 writer.add_scalar("Loss/val", val_loss, iter)
                 writer.add_scalar("Accuracy/val", val_accuracy, iter)
                 tqdm.write(f"Iter {iter+1}/{n_iters}, Val Loss: {val_loss:.4f}, Val Accuracy: {val_accuracy:.4f}")
-                
+            if (iter + 1) % 500 == 0:
                 # Save checkpoint
                 checkpoint_path = os.path.join(save_dir, f"checkpoint_{iter+1}.pt")
                 self.save(checkpoint_path)
@@ -119,7 +119,6 @@ class NavigationAgent:
         self.save(final_checkpoint_path)
         
         writer.close()
-        
         # Plotting at the end
         plt.figure(figsize=(10, 5))
         plt.plot(train_losses, label="Training Loss")
@@ -129,7 +128,16 @@ class NavigationAgent:
         plt.legend()
         plt.savefig(f"train_loss_{args.name}.png")
         plt.close()
-
+        
+        val_steps = [100 * (i + 1) for i in range(len(val_losses))]
+        plt.figure(figsize=(10, 5))
+        plt.plot(val_steps, val_losses, label="Validation Loss")
+        plt.xlabel("Training Steps")
+        plt.ylabel("Loss")
+        plt.title("Validation Loss Over Training Steps")
+        plt.legend()
+        plt.savefig(f"val_loss_{args.name}.png")
+        plt.close()
     
     def validate(self, val_env):
         self.vln_bert.eval()

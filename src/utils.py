@@ -98,8 +98,8 @@ def pad_instr_tokens(instr_tokens, maxlength=80):
     instr_tokens += ['[PAD]'] * (maxlength-len(instr_tokens))
 
     assert len(instr_tokens) == maxlength
-    print(maxlength)
-    print("instr_tokens: ", instr_tokens)
+    # print(maxlength)
+    # print("instr_tokens: ", instr_tokens)
     return instr_tokens, num_words
 
 

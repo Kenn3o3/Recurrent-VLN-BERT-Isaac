@@ -15,8 +15,8 @@ data_dir = "../VLN-Go2-Matterport"
 all_episodes = os.listdir(os.path.join(data_dir, "training_data"))
 random.seed(42)
 random.shuffle(all_episodes)
-train_size = int(0.8 * len(all_episodes))
-val_size = int(0.2 * len(all_episodes))
+train_size = int(0.9 * len(all_episodes))
+val_size = int(0.1 * len(all_episodes))
 print("val size: ", val_size)
 print("train size: ", train_size)
 train_episodes = all_episodes[:train_size]

@@ -418,6 +418,7 @@ class DepthCNN(nn.Module):
         x = torch.clamp(x, min=-50, max=50)
         
         x = self.conv2(x)
+        x = torch.clamp(x, min=-50, max=50)
         if torch.isnan(x).any(): print("NaN after conv2")
         x = self.gn2(x)
         if torch.isnan(x).any(): print("NaN after gn2")
@@ -426,6 +427,7 @@ class DepthCNN(nn.Module):
         x = torch.clamp(x, min=-50, max=50)
         
         x = self.conv3(x)
+        x = torch.clamp(x, min=-50, max=50)
         if torch.isnan(x).any(): print("NaN after conv3")
         x = self.gn3(x)
         if torch.isnan(x).any(): print("NaN after gn3")
@@ -490,8 +492,10 @@ class VLNBert(BertPreTrainedModel):
             depth_feat = self.depth_extractor(depth)  # (batch, 512)
             # print("RGB feat min/max/mean:", rgb_feat.min().item(), rgb_feat.max().item(), rgb_feat.mean().item())
             # print("Depth feat min/max/mean:", depth_feat.min().item(), depth_feat.max().item(), depth_feat.mean().item())
-            if torch.isnan(rgb_feat).any() or torch.isnan(depth_feat).any():
+            if torch.isnan(rgb_feat).any():
                 raise ValueError("NaN detected in feature extraction")
+            if torch.isnan(depth_feat).any():
+                raise ValueError("NaN detected in depth feature extraction")
             visn_input = torch.cat([rgb_feat, depth_feat], dim=-1).unsqueeze(1)  # (batch, 1, 4096)
             img_embedding_output = self.vision_encoder(visn_input)  # (batch, 1, hidden_size)
             

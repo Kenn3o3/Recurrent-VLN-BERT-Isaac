@@ -95,7 +95,7 @@ param = Param()
 args = param.args
 
 args.vlnbert = "prevalent"
-args.iters = 10
+args.iters = 10000
 args.batchSize = 2
 args.lr = 1e-5
 args.name = "navigation_PREVALENT"
