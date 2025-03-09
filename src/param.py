@@ -57,6 +57,22 @@ class Param:
         # A2C
         self.parser.add_argument("--gamma", default=0.9, type=float)
         self.parser.add_argument("--normalize", dest="normalize_loss", default="total", type=str, help='batch or total')
+        # Simulation param
+
+        self.parser.add_argument("--episode_index", default=0, type=int, help="Episode index.")
+        self.parser.add_argument("--num_episodes", default=1, type=int, help="Number of episodes to run.")
+        self.parser.add_argument("--task", type=str, default="go2_matterport", help="Name of the task.")
+        self.parser.add_argument("--num_envs", type=int, default=1, help="Number of environments to simulate.")
+        self.parser.add_argument("--seed", type=int, default=None, help="Seed used for the environment")
+        self.parser.add_argument("--video", action="store_true", default=False, help="Record videos during training.")
+        self.parser.add_argument("--video_length", type=int, default=2000, help="Length of the recorded video (in steps).")
+        self.parser.add_argument("--history_length", default=0, type=int, help="Length of history buffer.")
+        self.parser.add_argument("--use_cnn", action="store_true", default=None, help="Name of the run folder to resume from.")
+        self.parser.add_argument("--arm_fixed", action="store_true", default=False, help="Fix the robot's arms.")
+        self.parser.add_argument("--use_rnn", action="store_true", default=False, help="Use RNN in the actor-critic model.")
+        self.parser.add_argument("--action_repeat", default=40, type=int, help="Number of simulation steps to repeat each action.")
+        self.parser.add_argument("--load_run", type=str, default=None, help="Name of the run folder to resume from.")
+        self.parser.add_argument("--vlnbert_model_path", type=str, required=False, help="Path to the VLNBert model checkpoint.")
 
         self.args = self.parser.parse_args()
 
@@ -79,7 +95,7 @@ param = Param()
 args = param.args
 
 args.vlnbert = "prevalent"
-args.iters = 10000
+args.iters = 10
 args.batchSize = 2
 args.lr = 1e-5
 args.name = "navigation_PREVALENT"

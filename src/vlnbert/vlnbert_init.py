@@ -12,7 +12,7 @@ def get_vlnbert_models(config=None):
     config_class = BertConfig
     from vlnbert.vlnbert_PREVALENT import VLNBert
     model_class = VLNBert
-    model_name_or_path = 'pretrained_weight/pytorch_model.bin'
+    model_name_or_path = '/home/prj21/fyp/Recurrent-VLN-BERT-Isaac/pretrained_weight/pytorch_model.bin'
     vis_config = config_class.from_pretrained('bert-base-uncased')
     # vis_config.img_feature_dim = 2176 # Original model dim
     vis_config.img_feature_dim = 4096

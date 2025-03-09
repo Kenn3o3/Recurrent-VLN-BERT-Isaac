@@ -43,7 +43,9 @@ def find_latest_model(checkpoints_dir, experiment_name):
             raise FileNotFoundError(f"No checkpoint files found in {latest_datetime_dir}.")
         return checkpoint_files[-1]  # Latest checkpoint
 
-data_dir = "./"
+# data_dir = "./"
+data_dir = "../VLN-Go2-Matterport"
+
 all_episodes = os.listdir(os.path.join(data_dir, "training_data"))
 print(f"Testing on {len(all_episodes)} episodes")
 test_env = NavigationBatch(data_dir, batch_size=args.batchSize, episodes=all_episodes, tokenizer=get_tokenizer(args))

@@ -1,107 +1,126 @@
-''' Evaluation of agent trajectories '''
+import pexpect
+import os
+import time
+import argparse
+import re
 
-import json
-from collections import defaultdict
-import networkx as nx
-import numpy as np
-import pprint
-pp = pprint.PrettyPrinter(indent=4)
+# Parse command-line arguments
+parser = argparse.ArgumentParser(description="Evaluate VLN agent on multiple episodes.")
+parser.add_argument("--model_path", required=True, help="Path to the VLNBert model checkpoint.")
+parser.add_argument("--num_episodes", type=int, required=True, help="Number of episodes to evaluate.")
+args = parser.parse_args()
 
-from utils import load_datasets, load_nav_graphs
+# Fixed parameters (match your example command)
+task = "go2_matterport_vision"
+history_length = 9
+load_run = "2024-09-25_23-22-02"  # Adjust if needed
+max_attempts = 3          # Maximum retries per episode
+wait_time = 10            # Seconds to wait before retrying
+activity_timeout = 360    # Seconds to wait for any output
+total_timeout = 360       # Total seconds per episode (6 minutes)
 
-class Evaluation(object):
-    ''' Results submission format:  [{'instr_id': string, 'trajectory':[(viewpoint_id, heading_rads, elevation_rads),] } ] '''
+# Directory for logs
+log_dir = "evaluation_logs"
+os.makedirs(log_dir, exist_ok=True)
 
-    def __init__(self, splits, scans, tok):
-        self.error_margin = 3.0
-        self.splits = splits
-        self.tok = tok
-        self.gt = {}
-        self.instr_ids = []
-        self.scans = []
-        for split in splits:
-            for item in load_datasets([split]):
-                if scans is not None and item['scan'] not in scans:
-                    continue
-                self.gt[str(item['path_id'])] = item
-                self.scans.append(item['scan'])
-                self.instr_ids += ['%s_%d' % (item['path_id'], i) for i in range(len(item['instructions']))]
-        self.scans = set(self.scans)
-        self.instr_ids = set(self.instr_ids)
-        self.graphs = load_nav_graphs(self.scans)
-        self.distances = {}
-        for scan,G in self.graphs.items():  # compute all shortest paths
-            self.distances[scan] = dict(nx.all_pairs_dijkstra_path_length(G))
+# Initialize lists to store results
+successes = []
+progresses = []
 
-    def _get_nearest(self, scan, goal_id, path):
-        near_id = path[0][0]
-        near_d = self.distances[scan][near_id][goal_id]
-        for item in path:
-            d = self.distances[scan][item[0]][goal_id]
-            if d < near_d:
-                near_id = item[0]
-                near_d = d
-        return near_id
-
-    def _score_item(self, instr_id, path):
-        ''' Calculate error based on the final position in trajectory, and also
-            the closest position (oracle stopping rule).
-            The path contains [view_id, angle, vofv] '''
-        gt = self.gt[instr_id.split('_')[-2]]
-        start = gt['path'][0]
-        assert start == path[0][0], 'Result trajectories should include the start position'
-        goal = gt['path'][-1]
-        final_position = path[-1][0]  # the first of [view_id, angle, vofv]
-        nearest_position = self._get_nearest(gt['scan'], goal, path)
-        self.scores['nav_errors'].append(self.distances[gt['scan']][final_position][goal])
-        self.scores['oracle_errors'].append(self.distances[gt['scan']][nearest_position][goal])
-        self.scores['trajectory_steps'].append(len(path)-1)
-        distance = 0  # length of the path in meters
-        prev = path[0]
-        for curr in path[1:]:
-            distance += self.distances[gt['scan']][prev[0]][curr[0]]
-            prev = curr
-        self.scores['trajectory_lengths'].append(distance)
-        self.scores['shortest_lengths'].append(
-            self.distances[gt['scan']][start][goal]
+# Loop over episodes
+for episode_index in range(args.num_episodes):
+    attempts = 0
+    success = False
+    episode_success = False
+    episode_progress = 0.0
+    
+    while attempts < max_attempts and not success:
+        attempts += 1
+        print(f"Starting attempt {attempts} for episode {episode_index}")
+        
+        # Construct the command
+        command = (
+            f"python src/evaluate.py --task={task} --history_length={history_length} "
+            f"--load_run={load_run} --vlnbert_model_path={args.model_path} "
+            f"--episode_index={episode_index}"
         )
-
-    def score(self, output_file):
-        ''' Evaluate each agent trajectory based on how close it got to the goal location '''
-        self.scores = defaultdict(list)
-        instr_ids = set(self.instr_ids)
-        if type(output_file) is str:
-            with open(output_file) as f:
-                results = json.load(f)
+        
+        # Spawn the process
+        child = pexpect.spawn(command)
+        
+        # Open log file for this attempt
+        log_file_path = os.path.join(log_dir, f"episode_{episode_index}_attempt_{attempts}.log")
+        with open(log_file_path, "wb") as log_file:
+            child.logfile = log_file  # Log output to file
+            
+            start_time = time.time()
+            while time.time() - start_time < total_timeout:
+                try:
+                    # Expect the simulation stop message
+                    index_match = child.expect(
+                        [
+                            r"\[\d+\.\d+s\] Simulation is stopped\. The app will keep running "
+                            r"with physics disabled\. Press Ctrl\+C or close the window to exit the app\."
+                        ],
+                        timeout=activity_timeout
+                    )
+                    if index_match == 0:
+                        success = True
+                        break
+                except pexpect.TIMEOUT:
+                    print(f"No output in {activity_timeout} seconds for episode {episode_index}, attempt {attempts}")
+                    break
+                except pexpect.EOF:
+                    print(f"Process crashed for episode {episode_index}, attempt {attempts}")
+                    break
+            # Handle process termination
+            if success:
+                child.sendcontrol('c')  # Send Ctrl+C to close cleanly
+                child.wait()
+            else:
+                child.kill(9)  # Force terminate
+                child.wait()
+        
+        # If successful, parse the log for metrics
+        if success:
+            with open(log_file_path, "r") as log_file:
+                log_content = log_file.read()
+                # Check success
+                if "Success: Reached the goal within 1 meter" in log_content:
+                    episode_success = True
+                elif "Failure: Did not reach the goal" in log_content or "Failure: Reached maximum steps" in log_content:
+                    episode_success = False
+                else:
+                    episode_success = False  # Default to failure if status unclear
+                
+                # Extract progress
+                progress_match = re.search(r"Progress: (\d+\.\d+)", log_content)
+                episode_progress = float(progress_match.group(1)) if progress_match else 0.0
+            
+            # Log per-episode result
+            with open(os.path.join(log_dir, "evaluation_results.txt"), "a") as result_file:
+                status = "Success" if episode_success else "Failure"
+                result_file.write(f"Episode {episode_index}: {status}, Progress: {episode_progress:.2f}\n")
+            
+            # Store results
+            successes.append(1 if episode_success else 0)
+            progresses.append(episode_progress)
+            break  # Move to next episode
+        elif attempts < max_attempts:
+            print(f"Retrying episode {episode_index} after {wait_time} seconds")
+            time.sleep(wait_time)
         else:
-            results = output_file
+            print(f"Failed to complete episode {episode_index} after {max_attempts} attempts. Skipping.")
+            successes.append(0)
+            progresses.append(0.0)
 
-        print('result length', len(results))
-        for item in results:
-            # Check against expected ids
-            if item['instr_id'] in instr_ids:
-                instr_ids.remove(item['instr_id'])
-                self._score_item(item['instr_id'], item['trajectory'])
+# Compute averages
+success_rate = sum(successes) / len(successes) if successes else 0.0
+average_progress = sum(progresses) / len(progresses) if progresses else 0.0
 
-        if 'train' not in self.splits:  # Exclude the training from this. (Because training eval may be partial)
-            assert len(instr_ids) == 0, 'Missing %d of %d instruction ids from %s - not in %s'\
-                           % (len(instr_ids), len(self.instr_ids), ",".join(self.splits), output_file)
-            assert len(self.scores['nav_errors']) == len(self.instr_ids)
-        score_summary = {
-            'nav_error': np.average(self.scores['nav_errors']),
-            'oracle_error': np.average(self.scores['oracle_errors']),
-            'steps': np.average(self.scores['trajectory_steps']),
-            'lengths': np.average(self.scores['trajectory_lengths'])
-        }
-        num_successes = len([i for i in self.scores['nav_errors'] if i < self.error_margin])
-        score_summary['success_rate'] = float(num_successes)/float(len(self.scores['nav_errors']))
-        oracle_successes = len([i for i in self.scores['oracle_errors'] if i < self.error_margin])
-        score_summary['oracle_rate'] = float(oracle_successes)/float(len(self.scores['oracle_errors']))
+# Log overall results
+with open(os.path.join(log_dir, "evaluation_results.txt"), "a") as result_file:
+    result_file.write(f"\nOverall Success Rate: {success_rate:.2f}\n")
+    result_file.write(f"Average Progress: {average_progress:.2f}\n")
 
-        spl = [float(error < self.error_margin) * l / max(l, p, 0.01)
-            for error, p, l in
-            zip(self.scores['nav_errors'], self.scores['trajectory_lengths'], self.scores['shortest_lengths'])
-        ]
-        score_summary['spl'] = np.average(spl)
-
-        return score_summary, self.scores
+print(f"Evaluation completed. Success rate: {success_rate:.2f}, Average progress: {average_progress:.2f}")

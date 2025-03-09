@@ -1,8 +1,8 @@
 # Recurrent Recurrent-VLN-BERT-Isaac
 
-A LARGE part of the code is adapted from [[Paper & Appendices](https://arxiv.org/abs/2011.13922)] [[GitHub](https://github.com/YicongHong/Recurrent-VLN-BERT)]
+the base model is adapted from [[Paper & Appendices](https://arxiv.org/abs/2011.13922)] [[GitHub](https://github.com/YicongHong/Recurrent-VLN-BERT)]
 
-Recurrent-VLN-BERT-Isaac is a simplified version of Recurrent-VLN-BERT, which has the following changes:
+Recurrent-VLN-BERT-Isaac is modified version of Recurrent-VLN-BERT, which has the following changes:
 - Replace multiple viewpoint features with one feature vector per step.
 - Action Prediction: Add a classification head on the state token instead of using attention weights for action selection.
 
@@ -26,14 +26,36 @@ Define the New Problem Requirements
 Pre-trained [PREVALENT](https://github.com/weituo12321/PREVALENT) weights
     - Download the `pytorch_model.bin` from [here](https://drive.google.com/drive/folders/1sW2xVaSaciZiQ7ViKzm_KbrLD_XvOq5y).
 
-python r2r_src/train_navigation.py
+## Testing on the VLN-Go2-Matterport dataset
 
-python r2r_src/test_navigation.py
+training command:
+```
+python src/train_navigation.py
+```
 
-===
-depth statistic:
+testing command:
+```
+python src/test_navigation.py
+```
 
-Min Depth: 0.04 meters
-Max Depth: 39.36 meters
-Mean Depth: 2.02 meters
-Std Depth: 1.68 meters
+## Evaluation on the simulator
+
+testing on a single episode (e.g., episode 5):
+
+```
+python src/evaluate.py --task=go2_matterport_vision --history_length=9 --load_run=2024-09-25_23-22-02 --vlnbert_model_path=/home/prj21/fyp/Recurrent-VLN-BERT-Isaac/checkpoints/navigation_PREVALENT/2025-03-07_20-02-28/checkpoint_10000.pt --episode_index=5
+```
+
+testing on the n episodes (e.g., n=5):
+```
+python src/eval.py --model_path=/home/prj21/fyp/Recurrent-VLN-BERT-Isaac/checkpoints/navigation_PREVALENT/2025-03-07_20-02-28/checkpoint_10000.pt --num_episodes=5
+```
+
+# todo:
+
+add graph for checking val loss during training.
+enhance generalizability, e.g., 
+
+run mode:
+
+python src/run.py --task=go2_matterport_vision --history_length=9 --load_run=2024-09-25_23-22-02 --episode_index 0

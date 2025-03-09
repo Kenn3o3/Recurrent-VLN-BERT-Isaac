@@ -26,10 +26,9 @@ print("Ready to train!!!")
 train_env = NavigationBatch(data_dir, batch_size=args.batchSize, episodes=train_episodes, tokenizer=get_tokenizer(args))
 val_env = NavigationBatch(data_dir, batch_size=args.batchSize, episodes=val_episodes, tokenizer=get_tokenizer(args))
 
-# Create a datetime-named subfolder for this training run
 current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 save_dir = os.path.join("checkpoints", args.name, current_time)
 os.makedirs(save_dir, exist_ok=True)
 
 agent = NavigationAgent(train_env, get_tokenizer(args))
-agent.train(args.iters, val_env, save_dir)  # Pass save_dir to train method
+agent.train(args.iters, val_env, save_dir)

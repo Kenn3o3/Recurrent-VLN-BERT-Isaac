@@ -85,7 +85,7 @@ def load_datasets(splits):
     return data
 
 
-def pad_instr_tokens(instr_tokens, maxlength=20):
+def pad_instr_tokens(instr_tokens, maxlength=80):
 
     if len(instr_tokens) <= 2: #assert len(raw_instr_tokens) > 2
         return None
@@ -98,7 +98,8 @@ def pad_instr_tokens(instr_tokens, maxlength=20):
     instr_tokens += ['[PAD]'] * (maxlength-len(instr_tokens))
 
     assert len(instr_tokens) == maxlength
-
+    print(maxlength)
+    print("instr_tokens: ", instr_tokens)
     return instr_tokens, num_words
 
 
