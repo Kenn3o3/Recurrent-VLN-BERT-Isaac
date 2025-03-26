@@ -23,11 +23,9 @@ class NavigationBatch:
         self.tokenizer = tokenizer
         self.data = []
         
-        # Default to all episodes if none provided
         if episodes is None:
             episodes = os.listdir(os.path.join(feature_dir, "training_data"))
         
-        # Load data for each episode, storing paths instead of images
         for episode in episodes:
             episode_path = os.path.join(feature_dir, "training_data", episode)
             with open(os.path.join(episode_path, "instructions.txt")) as f:
@@ -72,10 +70,8 @@ class NavigationBatch:
         rgb = []
         depth = []
         for item in batch:
-            # Load and transform images for this episode
             rgb_seq = [self.rgb_transform(Image.open(path)) for path in item["rgb_paths"]]
             depth_seq = [self.depth_transform(np.load(path)) for path in item["depth_paths"]]
-            # Pad sequences with zero tensors
             rgb_seq += [torch.zeros(3, 224, 224)] * (max_len - len(rgb_seq))
             depth_seq += [torch.zeros(1, 224, 224)] * (max_len - len(depth_seq))
             rgb.append(torch.stack(rgb_seq))

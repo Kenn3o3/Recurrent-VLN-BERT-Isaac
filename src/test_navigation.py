@@ -23,7 +23,6 @@ def find_latest_model(checkpoints_dir, experiment_name):
         FileNotFoundError: If no datetime directories or checkpoint files are found.
     """
     experiment_path = os.path.join(checkpoints_dir, experiment_name)
-    # Get all datetime subfolders and sort lexicographically (latest last)
     datetime_dirs = sorted(glob.glob(os.path.join(experiment_path, "*/")))
     if not datetime_dirs:
         raise FileNotFoundError(f"No datetime directories found in {experiment_path}.")
@@ -34,7 +33,6 @@ def find_latest_model(checkpoints_dir, experiment_name):
     if os.path.exists(best_model_path):
         return best_model_path
     else:
-        # Get all checkpoints and sort by iteration number
         checkpoint_files = sorted(
             glob.glob(os.path.join(latest_datetime_dir, "checkpoint_*.pt")),
             key=lambda x: int(x.split('_')[-1].split('.')[0])
@@ -52,7 +50,8 @@ test_env = NavigationBatch(data_dir, batch_size=args.batchSize, episodes=all_epi
 agent = NavigationAgent(test_env, get_tokenizer(args))
 
 # Load the latest model
-model_path = find_latest_model("checkpoints", args.name)
+# model_path = find_latest_model("checkpoints", args.name)
+model_path = "/home/prj21/fyp/Recurrent-VLN-BERT-Isaac/checkpoints/navigation_PREVALENT/2025-03-07_20-02-28/checkpoint_10000.pt"
 print("model path: ", model_path)
 agent.load(model_path)
 

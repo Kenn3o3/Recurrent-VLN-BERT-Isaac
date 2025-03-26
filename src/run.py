@@ -121,7 +121,6 @@ class Planner:
             (0.0, 0.0, 0.5),  # Turn left
             (0.0, 0.0, -0.5)  # Turn right
         ]
-
         # Expert path visualization (unchanged)
         # self.marker_cfg = CUBOID_MARKER_CFG.copy()
         # self.marker_cfg.prim_path = "/Visuals/Command/pos_goal_command"
@@ -138,7 +137,7 @@ class Planner:
         # Initialize VLNBert model
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
         self.vln_bert = get_vlnbert_models().to(self.env.unwrapped.device)
-        model_path = find_latest_model("checkpoints", "navigation_PREVALENT")
+        model_path = "/home/prj21/fyp/Recurrent-VLN-BERT-Isaac/checkpoints/navigation_PREVALENT/2025-03-07_20-02-28/best_model.pt" #find_latest_model("checkpoints", "navigation_PREVALENT")
         self.vln_bert.load_state_dict(torch.load(model_path, map_location=self.env.unwrapped.device))
         self.vln_bert.eval()
         print(f"Loaded VLNBert model from {model_path}")
@@ -166,7 +165,7 @@ class Planner:
         """Process depth map to the format expected by VLNBert."""
         depth = np.where(np.isfinite(depth_map), depth_map, 1.94)
         depth = torch.from_numpy(depth).float().to(self.env.unwrapped.device)
-        depth = (depth - 1.94) / 1.43  # Standardize using stats from compute_depth_stats.py
+        depth = (depth - 1.94) / 1.43
         depth = depth.unsqueeze(0).unsqueeze(0)  # Shape: (1, 1, H, W)
         depth = F.interpolate(depth, size=(224, 224), mode='bilinear', align_corners=False)
         return depth  # Shape: (1, 1, 224, 224)
@@ -175,8 +174,6 @@ class Planner:
         obs, infos = self.env.reset()
         current_instruction = self.env_cfg.instruction_text
         self.log_manager.start_episode(episode_idx, current_instruction)
-        
-        # Training data buffers (unchanged)
         instructions = []
         rgbs = []
         depths = []
@@ -189,7 +186,6 @@ class Planner:
         
         print("Started episode. Visualization and action input at http://localhost:5000")
 
-        # Inference mode with VLNBert
         lang_output, lang_mask = self.process_instruction(current_instruction)
         robot_pos = self.env.unwrapped.scene["robot"].data.root_pos_w[0].cpu().numpy()
         rgb_image_np = infos['observations']['camera_obs'][0, :, :, :3].clone().detach().cpu().numpy().astype(np.uint8)
@@ -216,7 +212,6 @@ class Planner:
                 bgr_image_np = cv2.cvtColor(rgb_image_np, cv2.COLOR_RGB2BGR)
                 goal_distance = np.linalg.norm(robot_pos[:2] - self.env_cfg.goals[0]['position'][:2])
                 self.robot_path.append((robot_pos[0], robot_pos[1]))
-                # Update UI with predicted action
                 resized_rgb = cv2.resize(rgb_image_np, (256, 256))
                 resized_depth = cv2.resize(depth_map, (256, 256), interpolation=cv2.INTER_NEAREST)
                 self.log_manager.log_step(
@@ -229,14 +224,12 @@ class Planner:
                     'waiting_for_action': False
                 })
                 self.web_ui.update_data(self.web_ui.current_data)
-                # Check if goal is reached
                 if goal_distance < 1.0:
                     success = True
                     done = True
                     break
-            lang_output = next_lang_output  # Update language output for recurrence
+            lang_output = next_lang_output  
 
-        # Episode outcome
         status = "Success: Reached the goal within 1 meter" if success else "Failure: Did not reach the goal" if done else "Failure: Reached maximum steps"
         self.log_manager.set_status(status)
         print(status)
@@ -247,7 +240,6 @@ class Planner:
         time.sleep(3)
 
 if __name__ == "__main__":
-    # Environment Configuration
     env_cfg = parse_env_cfg(args_cli.task, num_envs=args_cli.num_envs)
     vel_command = torch.tensor([0, 0, 0])
     episode_idx = args_cli.episode_index 

@@ -21,7 +21,6 @@ def compute_depth_statistics_sequential(data_dir):
                 depth_path = os.path.join(depth_dir, depth_file)
                 try:
                     depth = np.load(depth_path)
-                    # print(f"Loaded {depth_path} with shape {depth.shape}")
                     if depth.size == 0:
                         continue
 

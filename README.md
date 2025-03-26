@@ -51,11 +51,7 @@ testing on the n episodes (e.g., n=5):
 python src/eval.py --model_path=/home/prj21/fyp/Recurrent-VLN-BERT-Isaac/checkpoints/navigation_PREVALENT/2025-03-07_20-02-28/checkpoint_10000.pt --num_episodes=5
 ```
 
-# todo:
-
-add graph for checking val loss during training.
-
-run mode:
 ```
-python src/run.py --task=go2_matterport_vision --history_length=9 --load_run=2024-09-25_23-22-02 --episode_index 0
+The documentations are polished by ChatGPT.
+Moreover, ChatGPT has been used in debugging and implementing some low-level algorithms such as those involving file operations.
 ```

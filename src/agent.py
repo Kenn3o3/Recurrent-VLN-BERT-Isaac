@@ -51,28 +51,26 @@ class NavigationAgent:
         if train:
             self.optimizer.zero_grad()
             total_loss.backward()
-            torch.nn.utils.clip_grad_norm_(self.vln_bert.parameters(), 40.)
+            torch.nn.utils.clip_grad_norm_(self.vln_bert.paramevfgvrs(), 40.)
             self.optimizer.step()
         return total_loss.item(), torch.stack(predictions, dim=1), actions
 
     def train(self, n_iters, val_env, save_dir):
         writer = SummaryWriter(log_dir=f"runs/{args.name}")
         self.vln_bert.train()
-        batch_iter = cycle(self.env)  # Infinite iterator over training batches
+        batch_iter = cycle(self.env)
         num_warmup_steps = int(n_iters * args.warmup_fraction)
         scheduler = CosineAnnealingLR(
             self.optimizer,
             T_max=100,
             eta_min=0
         )
-
-        # Lists to store metrics for plotting
         train_losses = []
         train_accuracies = []
         val_losses = []
         val_accuracies = []
         
-        best_val_loss = float('inf')  # Initialize best validation loss
+        best_val_loss = float('inf')
         
         for iter in tqdm(range(n_iters), desc="Training"):
             batch = next(batch_iter)
@@ -80,13 +78,13 @@ class NavigationAgent:
             train_losses.append(loss)
             
             # Compute training accuracy
-            masks = batch["masks"].to(preds.device)  # Shape: (batch_size, sequence_length)
-            valid_preds = preds[masks]               # 1D tensor of valid predictions
-            valid_gt = gt[masks]                     # 1D tensor of valid ground truth
-            if valid_preds.numel() > 0:              # Check if there are valid steps
+            masks = batch["masks"].to(preds.device) 
+            valid_preds = preds[masks]              
+            valid_gt = gt[masks]                    
+            if valid_preds.numel() > 0: 
                 train_accuracy = (valid_preds == valid_gt).float().mean().item()
             else:
-                train_accuracy = 0.0                 # No valid steps, set accuracy to 0
+                train_accuracy = 0.0 
             
             # Log and display metrics
             tqdm.write(f"Iter {iter+1}/{n_iters}, Train Loss: {loss:.4f}, Train Accuracy: {train_accuracy:.4f}")
@@ -94,8 +92,6 @@ class NavigationAgent:
             writer.add_scalar("Accuracy/train", train_accuracy, iter)
             
             scheduler.step()
-            
-            # Periodic validation and checkpointing every 500 iterations
             if (iter + 1) % 100 == 0:
                 val_loss, val_accuracy = self.validate(val_env)
                 val_losses.append(val_loss)
@@ -103,23 +99,17 @@ class NavigationAgent:
                 writer.add_scalar("Loss/val", val_loss, iter)
                 writer.add_scalar("Accuracy/val", val_accuracy, iter)
                 tqdm.write(f"Iter {iter+1}/{n_iters}, Val Loss: {val_loss:.4f}, Val Accuracy: {val_accuracy:.4f}")
-            if (iter + 1) % 500 == 0:
-                # Save checkpoint
+            if (iter + 1) % 100 == 0:
                 checkpoint_path = os.path.join(save_dir, f"checkpoint_{iter+1}.pt")
                 self.save(checkpoint_path)
-                
-                # Save best model if validation loss improves
                 if val_loss < best_val_loss:
                     best_val_loss = val_loss
                     best_model_path = os.path.join(save_dir, "best_model.pt")
                     self.save(best_model_path)
-        
-        # Save final checkpoint
         final_checkpoint_path = os.path.join(save_dir, f"checkpoint_{n_iters}.pt")
         self.save(final_checkpoint_path)
         
         writer.close()
-        # Plotting at the end
         plt.figure(figsize=(10, 5))
         plt.plot(train_losses, label="Training Loss")
         plt.xlabel("Iteration")
@@ -145,7 +135,7 @@ class NavigationAgent:
         total_correct = 0
         total_steps = 0
         with torch.no_grad():
-            val_env.ix = 0  # Reset iterator
+            val_env.ix = 0
             try:
                 while True:
                     batch = next(val_env)
@@ -157,7 +147,7 @@ class NavigationAgent:
                 pass
         avg_loss = total_loss / total_steps if total_steps > 0 else 0
         accuracy = total_correct / total_steps if total_steps > 0 else 0
-        self.vln_bert.train()  # Restore training mode
+        self.vln_bert.train() 
         return avg_loss, accuracy
 
     def test(self):
