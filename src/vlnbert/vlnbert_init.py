@@ -1,4 +1,4 @@
-# Recurrent VLN-BERT, 2020, by Yicong.Hong@anu.edu.au
+# Modified from Recurrent VLN-BERT, 2020, Yicong.Hong@anu.edu.au
 
 from transformers import BertConfig, BertTokenizer
 

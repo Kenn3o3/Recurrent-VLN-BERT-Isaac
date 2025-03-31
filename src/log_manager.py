@@ -29,7 +29,7 @@ class LogManager:
             'robot_path': [],
             'current_action': 'Stop moving',
             'rgb_image': '',
-            'latest_depth_image': '',  # Added for real-time depth map
+            'latest_depth_image': '', 
             'goal_distance': 0.0,
             'status': 'Running'
         }
@@ -42,7 +42,6 @@ class LogManager:
             [float(x.item() if hasattr(x, 'item') else x), float(y.item() if hasattr(y, 'item') else y)]
             for x, y in robot_path
         ]
-        # Resize images to 256x256 for efficiency
         resized_rgb = cv2.resize(rgb_image_np, (256, 256))
         resized_depth = cv2.resize(depth_map, (256, 256), interpolation=cv2.INTER_NEAREST)
         depth_colored = self.depth_to_colormap(resized_depth)

@@ -6,7 +6,7 @@ from agent import NavigationAgent
 from param import args
 from vlnbert.vlnbert_init import get_tokenizer
 import warnings
-from datetime import datetime  # Added import for datetimeimport warnings
+from datetime import datetime 
 
 warnings.filterwarnings("ignore")
 data_dir = "../VLN-Go2-Matterport"

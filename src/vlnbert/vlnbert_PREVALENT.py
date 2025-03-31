@@ -1,5 +1,4 @@
-# PREVALENT, 2020, weituo.hao@duke.edu
-# Modified in Recurrent VLN-BERT, 2020, Yicong.Hong@anu.edu.au
+# Modified from Recurrent VLN-BERT, 2020, Yicong.Hong@anu.edu.au
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
@@ -46,8 +45,6 @@ class BertEmbeddings(nn.Module):
         self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size)
         self.token_type_embeddings = nn.Embedding(config.type_vocab_size, config.hidden_size)
 
-        # self.LayerNorm is not snake-cased to stick with TensorFlow model variable name and be able to load
-        # any TensorFlow checkpoint file
         self.LayerNorm = BertLayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
@@ -102,20 +99,20 @@ class BertSelfAttention(nn.Module):
         key_layer = self.transpose_for_scores(mixed_key_layer)
         value_layer = self.transpose_for_scores(mixed_value_layer)
 
-        # Take the dot product between "query" and "key" to get the raw attention scores.
+        
         attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
         attention_scores = attention_scores / math.sqrt(self.attention_head_size)
-        # Apply the attention mask is (precomputed for all layers in BertModel forward() function)
+        
         attention_scores = attention_scores + attention_mask
 
-        # Normalize the attention scores to probabilities.
+        
         attention_probs = nn.Softmax(dim=-1)(attention_scores)
 
-        # This is actually dropping out entire tokens to attend to, which might
-        # seem a bit unusual, but is taken from the original Transformer paper.
+        
+        
         attention_probs = self.dropout(attention_probs)
 
-        # Mask heads if we want to
+        
         if head_mask is not None:
             attention_probs = attention_probs * head_mask
 
@@ -152,7 +149,7 @@ class BertAttention(nn.Module):
     def forward(self, input_tensor, attention_mask, head_mask=None):
         self_outputs = self.self(input_tensor, attention_mask, head_mask)
         attention_output = self.output(self_outputs[0], input_tensor)
-        outputs = (attention_output,) + self_outputs[1:]  # add attentions if we output them
+        outputs = (attention_output,) + self_outputs[1:]  
         return outputs
 
 
@@ -197,7 +194,7 @@ class BertLayer(nn.Module):
         attention_output = attention_outputs[0]
         intermediate_output = self.intermediate(attention_output)
         layer_output = self.output(intermediate_output, attention_output)
-        outputs = (layer_output,) + attention_outputs[1:]  # add attentions if we output them
+        outputs = (layer_output,) + attention_outputs[1:]  
         return outputs
 
 
@@ -208,8 +205,8 @@ class BertPooler(nn.Module):
         self.activation = nn.Tanh()
 
     def forward(self, hidden_states):
-        # We "pool" the model by simply taking the hidden state corresponding
-        # to the first token.
+        
+        
         first_token_tensor = hidden_states[:, 0]
         pooled_output = self.dense(first_token_tensor)
         pooled_output = self.activation(pooled_output)
@@ -239,7 +236,7 @@ class BertOutAttention(nn.Module):
         self.attention_head_size = int(config.hidden_size / config.num_attention_heads)
         self.all_head_size = self.num_attention_heads * self.attention_head_size
 
-        # visual_dim = 2048
+        
         if ctx_dim is None:
             ctx_dim =config.hidden_size
         self.query = nn.Linear(config.hidden_size, self.all_head_size)
@@ -279,15 +276,15 @@ class LXRTXLayer(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        # Lang self-att and FFN layer
+        
         self.lang_self_att = BertAttention(config)
         self.lang_inter = BertIntermediate(config)
         self.lang_output = BertOutput(config)
-        # Visn self-att and FFN layer
+        
         self.visn_self_att = BertAttention(config)
         self.visn_inter = BertIntermediate(config)
         self.visn_output = BertOutput(config)
-        # The cross attention layer
+        
         self.visual_attention = BertXAttention(config)
 
     def cross_att(self, lang_input, lang_attention_mask, visn_input, visn_attention_mask):
@@ -334,7 +331,7 @@ class VisionEncoder(nn.Module):
         super().__init__()
         feat_dim = vision_size
 
-        # Object feature encoding
+        
         self.visn_fc = nn.Linear(feat_dim, config.hidden_size)
         self.visn_layer_norm = BertLayerNorm(config.hidden_size, eps=1e-12)
 
@@ -353,13 +350,13 @@ class FeatureExtractor(nn.Module):
     def __init__(self, pretrained=True):
         super().__init__()
         resnet = models.resnet18(pretrained=pretrained)
-        self.features = nn.Sequential(*list(resnet.children())[:-2])  # Up to avgpool
+        self.features = nn.Sequential(*list(resnet.children())[:-2])  
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
 
     def forward(self, x):
-        x = self.features(x)        # (batch, 2048, H, W)
-        x = self.avgpool(x)         # (batch, 2048, 1, 1)
-        x = x.view(x.size(0), -1)   # (batch, 2048)
+        x = self.features(x)        
+        x = self.avgpool(x)         
+        x = x.view(x.size(0), -1)   
         return x
 
 import torch.nn as nn
@@ -378,11 +375,11 @@ class DepthCNN(nn.Module):
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(64, output_dim)
         
-        # Initialize weights
+        
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
-                m.weight.data *= 0.1  # Scale down weights
+                m.weight.data *= 0.1  
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
             elif isinstance(m, nn.Linear):
@@ -394,13 +391,13 @@ class DepthCNN(nn.Module):
 
     def forward(self, x):
         x = torch.clamp(x, min=-5, max=5)
-        # print("Depth input min/max/mean:", x.min().item(), x.max().item(), x.mean().item())
+        
         if torch.isnan(x).any(): print("NaN in input to DepthCNN")
         
-        # print("Before conv1 min/max/mean:", x.min().item(), x.max().item(), x.mean().item())
+        
         x = self.conv1(x)
         x = torch.clamp(x, min=-10, max=10)
-        # print("After conv1 min/max/mean:", x.min().item(), x.max().item(), x.mean().item())
+        
         if torch.isnan(x).any(): print("NaN after conv1")
         x = self.gn1(x)
         if torch.isnan(x).any(): print("NaN after gn1")
@@ -436,7 +433,7 @@ class VLNBert(BertPreTrainedModel):
         super(VLNBert, self).__init__(config)
         self.embeddings = BertEmbeddings(config)
         self.pooler = BertPooler(config)
-        self.img_dim = config.img_feature_dim  # 4096 (RGB 2048 + Depth 2048)
+        self.img_dim = config.img_feature_dim  
         self.vl_layers = config.vl_layers
         self.la_layers = config.la_layers
         self.lalayer = nn.ModuleList([BertLayer(config) for _ in range(self.la_layers)])
@@ -446,7 +443,7 @@ class VLNBert(BertPreTrainedModel):
         self.img_dim = 1024
         self.vision_encoder = VisionEncoder(self.img_dim, config)
 
-        self.action_head = nn.Linear(config.hidden_size, 3)  # 3 actions
+        self.action_head = nn.Linear(config.hidden_size, 3)  
         
         self.init_weights()
 
@@ -475,20 +472,20 @@ class VLNBert(BertPreTrainedModel):
             return pooled_output, sequence_output
 
         elif mode == 'visual':
-            text_embeds = input_ids  # lang_output from previous step
+            text_embeds = input_ids  
             text_mask = extended_attention_mask
             
-            # Extract features from raw RGB and depth
-            rgb_feat = self.rgb_extractor(rgb)      # (batch, 512)
-            depth_feat = self.depth_extractor(depth)  # (batch, 512)
-            # print("RGB feat min/max/mean:", rgb_feat.min().item(), rgb_feat.max().item(), rgb_feat.mean().item())
-            # print("Depth feat min/max/mean:", depth_feat.min().item(), depth_feat.max().item(), depth_feat.mean().item())
+            
+            rgb_feat = self.rgb_extractor(rgb)      
+            depth_feat = self.depth_extractor(depth)  
+            
+            
             if torch.isnan(rgb_feat).any():
                 raise ValueError("NaN detected in feature extraction")
             if torch.isnan(depth_feat).any():
                 raise ValueError("NaN detected in depth feature extraction")
-            visn_input = torch.cat([rgb_feat, depth_feat], dim=-1).unsqueeze(1)  # (batch, 1, 4096)
-            img_embedding_output = self.vision_encoder(visn_input)  # (batch, 1, hidden_size)
+            visn_input = torch.cat([rgb_feat, depth_feat], dim=-1).unsqueeze(1)  
+            img_embedding_output = self.vision_encoder(visn_input)  
             
             img_seq_mask = vis_mask
             extended_img_mask = img_seq_mask.unsqueeze(1).unsqueeze(2)

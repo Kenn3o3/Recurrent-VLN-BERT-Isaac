@@ -3,7 +3,7 @@ from env import NavigationBatch
 from agent import NavigationAgent
 from param import args
 from vlnbert.vlnbert_init import get_tokenizer
-import glob  # Added import for glob
+import glob
 
 import warnings
 warnings.filterwarnings("ignore")

@@ -8,7 +8,7 @@ from itertools import cycle
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
 import matplotlib
-matplotlib.use('Agg')  # renders plots to files without requiring a GUI
+matplotlib.use('Agg')  
 import matplotlib.pyplot as plt
 import os
 from torch.cuda.amp import GradScaler, autocast
@@ -27,8 +27,8 @@ class NavigationAgent:
     def rollout(self, batch, train=True):
         torch.cuda.empty_cache()
         instr_encodings = batch["instr_encodings"].cuda()
-        rgb = batch["rgb"].cuda()      # (batch, seq_len, 3, 224, 224)
-        depth = batch["depth"].cuda()  # (batch, seq_len, 1, 224, 224)
+        rgb = batch["rgb"].cuda()      
+        depth = batch["depth"].cuda()  
         actions = batch["actions"].cuda()
         masks = batch["masks"].cuda()
         seq_len = rgb.size(1)
@@ -77,7 +77,7 @@ class NavigationAgent:
             loss, preds, gt = self.rollout(batch)
             train_losses.append(loss)
             
-            # Compute training accuracy
+            
             masks = batch["masks"].to(preds.device) 
             valid_preds = preds[masks]              
             valid_gt = gt[masks]                    
@@ -86,7 +86,7 @@ class NavigationAgent:
             else:
                 train_accuracy = 0.0 
             
-            # Log and display metrics
+            
             tqdm.write(f"Iter {iter+1}/{n_iters}, Train Loss: {loss:.4f}, Train Accuracy: {train_accuracy:.4f}")
             writer.add_scalar("Loss/train", loss, iter)
             writer.add_scalar("Accuracy/train", train_accuracy, iter)
